@@ -23,8 +23,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object Main extends IOApp {
 
-  private val loginId = "1735623";
-
   implicit private def pureConfigHint[A] = ProductHint[A](ConfigFieldMapping(CamelCase, CamelCase))
 
   type E[A] = IO[A]
