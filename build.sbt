@@ -8,6 +8,7 @@ lazy val V = new {
   val log4cats = "0.2.0"
   val doobie = "0.6.0"
   val postgresql = "42.2.5.jre7"
+  val flyway = "5.2.4"
 }
 
 lazy val finanzio = project
@@ -32,7 +33,8 @@ lazy val finanzio = project
       "org.tpolecat" %% "doobie-core" % V.doobie,
       "org.tpolecat" %% "doobie-postgres" % V.doobie,
       "org.tpolecat" %% "doobie-hikari" % V.doobie,
-      "org.postgresql" % "postgresql" % V.postgresql
+      "org.postgresql" % "postgresql" % V.postgresql,
+      "org.flywaydb" % "flyway-core" % V.flyway
     ),
     scalacOptions ++= Seq(
       "-Ypartial-unification"

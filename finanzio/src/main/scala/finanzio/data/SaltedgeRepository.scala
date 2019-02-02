@@ -22,6 +22,7 @@ class SaltedgeRepositoryImpl[F[_]: Async: ContextShift](xa: Transactor[F])
     )
     values
     (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    on conflict do nothing
     """
     Update[SaltedgeTransaction](q).updateMany(transactions).transact(xa).void
   }

@@ -51,6 +51,7 @@ object Main extends IOApp {
         val loggingClient = Logger(true, true)(client)
         for {
           logger <- Slf4jLogger.create[E]
+          _ <- FlywayMigrations.create[E]
           saltedgeConfig <- loadConfigF[E, SaltedgeConfig]("saltedge")
           saltedgeService = new SaltedgeServiceImpl[E](loggingClient, saltedgeConfig)
           saltedgeRepository = new SaltedgeRepositoryImpl[E](transactor)
