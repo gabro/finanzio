@@ -7,6 +7,7 @@ import cats._
 import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
+import cats.temp.par._
 import org.http4s.client.blaze._
 import org.http4s.client._
 import org.http4s.client.middleware.Logger
@@ -31,8 +32,6 @@ object Main extends IOApp {
 
   type F[A] = IO[A]
 
-  implicit val parallelIO: Parallel[IO, IO] = Parallel[IO, IO.Par].asInstanceOf[Parallel[IO, IO]]
-
   val dbTransactor: Resource[F, HikariTransactor[F]] =
     for {
       connectExecutionContext <- ExecutionContexts.fixedThreadPool[F](32)
@@ -44,7 +43,7 @@ object Main extends IOApp {
         dbConfig.user,
         dbConfig.password,
         connectExecutionContext,
-        transactionExecutionContext
+        transactionExecutionContext,
       )
     } yield transactor
 
@@ -64,11 +63,6 @@ object Main extends IOApp {
           saltedgeService = new SaltedgeServiceImpl[F](loggingClient, saltedgeConfig)
           saltedgeRepository = new SaltedgeRepositoryImpl[F](transactor)
           accounts <- saltedgeService.accounts()
-          _ <- logger.info(
-            accounts
-              .map(account => s"\nName: ${account.name}\nBalance: ${account.balance}")
-              .mkString("\n---")
-          )
           _ <- runEvery(interval) {
             retrieveAndStoreTransactions(saltedgeService, saltedgeRepository, logger)
           }
@@ -76,23 +70,28 @@ object Main extends IOApp {
       }
     }
 
-  def retrieveAndStoreTransactions[F[_]: Sync](
+  def retrieveAndStoreTransactions[F[_]: Sync: Par](
       saltedgeService: SaltedgeService[F],
       saltedgeRepository: SaltedgeRepository[F],
-      logger: CatsLogger[F]
-  ): F[Unit] =
-    (for {
-      _ <- logger.info("Retrieving transactions...")
-      transactions <- saltedgeService.transactions()
-      _ <- saltedgeRepository.store(transactions)
-      _ <- logger.info(s"Done! Sleeping for $interval now...")
-    } yield ()).recoverWith {
+      logger: CatsLogger[F],
+  ): F[Unit] = {
+    val retrieveAndStore = (
+      saltedgeService.transactions >>= saltedgeRepository.storeTransactions,
+      saltedgeService.accounts >>= saltedgeRepository.storeAccounts,
+      saltedgeService.logins >>= saltedgeRepository.storeLogins,
+    ).parTupled
+    val program =
+      logger.info("Retrieving transactions, accounts and logins...") >>
+        retrieveAndStore >>
+        logger.info(s"Done! Sleeping for $interval now...")
+    program.recoverWith {
       case NonFatal(e) =>
         logger.error(e.getMessage) >>
           logger.error(
-            s"Error while retrieving and storing transactions. Retrying in $interval..."
+            s"Error while retrieving and storing transactions. Retrying in $interval...",
           )
     }
+  }
 
   def runEvery[F[_]: Timer: Sync, A](interval: FiniteDuration)(program: F[A]): F[Unit] =
     (Stream.eval(program) ++ Stream.fixedDelay[F](interval).evalMap(_ => program)).compile.drain

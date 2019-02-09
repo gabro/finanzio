@@ -12,4 +12,20 @@ create table if not exists transactions (
     accountId varchar(80) not null,
     createdAt timestamp not null,
     updatedAt timestamp not null
-)
+);
+
+create table if not exists accounts (
+    id varchar(80) primary key,
+    name varchar(80) not null,
+    nature varchar(80) not null,
+    balance real not null,
+    currencyCode varchar(80) not null,
+    loginId varchar(80) not null,
+    createdAt timestamp not null,
+    updatedAt timestamp not null
+);
+
+create table if not exists logins (
+    id varchar(80) primary key,
+    providerName varchar(80) not null
+);

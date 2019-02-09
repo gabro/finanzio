@@ -10,14 +10,16 @@ import doobie._
 import doobie.implicits._
 
 trait SaltedgeRepository[F[_]] {
-  def store(transactions: List[SaltedgeTransaction]): F[Unit]
+  def storeTransactions(transactions: List[SaltedgeTransaction]): F[Unit]
+  def storeAccounts(account: List[SaltedgeAccount]): F[Unit]
+  def storeLogins(logins: List[SaltedgeLogin]): F[Unit]
 }
 
 class SaltedgeRepositoryImpl[F[_]: Async: ContextShift](xa: Transactor[F])
     extends SaltedgeRepository[F]
     with DoobieMappings {
 
-  override def store(transactions: List[SaltedgeTransaction]): F[Unit] = {
+  override def storeTransactions(transactions: List[SaltedgeTransaction]): F[Unit] = {
     val q = """
     insert into transactions
     (id, mode, status, madeOn, amount, currencyCode, description, category,
@@ -40,6 +42,36 @@ class SaltedgeRepositoryImpl[F[_]: Async: ContextShift](xa: Transactor[F])
       updatedAt = excluded.updatedAt
     """
     Update[SaltedgeTransaction](q).updateMany(transactions).transact(xa).void
+  }
+
+  override def storeAccounts(accounts: List[SaltedgeAccount]): F[Unit] = {
+    val q = """
+    insert into accounts
+    (id, name, nature, balance, currencyCode, loginId, createdAt, updatedAt)
+    values
+    (?, ?, ?, ?, ?, ?, ?, ?)
+    on conflict (id) do update set
+      name = excluded.name,
+      nature = excluded.nature,
+      balance = excluded.balance,
+      currencyCode = excluded.currencyCode,
+      loginId = excluded.loginId,
+      createdAt = excluded.createdAt,
+      updatedAt = excluded.updatedAt
+    """
+    Update[SaltedgeAccount](q).updateMany(accounts).transact(xa).void
+  }
+
+  override def storeLogins(logins: List[SaltedgeLogin]): F[Unit] = {
+    val q = """
+    insert into logins
+    (id, providerName)
+    values
+    (?, ?)
+    on conflict (id) do update set
+      providerName = excluded.providerName
+    """
+    Update[SaltedgeLogin](q).updateMany(logins).transact(xa).void
   }
 
 }

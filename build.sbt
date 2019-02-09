@@ -1,6 +1,7 @@
 lazy val V = new {
   val cats = "1.5.0"
   val catsEffect = "1.1.0"
+  val catsPar = "0.2.1"
   val circe = "0.10.0"
   val http4s = "0.20.0-M4"
   val log4j = "2.11.1"
@@ -11,12 +12,13 @@ lazy val V = new {
   val flyway = "5.2.4"
 }
 
-lazy val finanzio = project
-  .settings(
+inThisBuild(
+  List(
     scalaVersion := "2.12.8",
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % V.cats,
       "org.typelevel" %% "cats-effect" % V.catsEffect,
+      "io.chrisdavenport" %% "cats-par" % V.catsPar,
       "org.http4s" %% "http4s-blaze-client" % V.http4s,
       "org.http4s" %% "http4s-circe" % V.http4s,
       "org.http4s" %% "http4s-dsl" % V.http4s,
@@ -31,17 +33,29 @@ lazy val finanzio = project
       "com.github.pureconfig" %% "pureconfig" % V.pureconfig,
       "com.github.pureconfig" %% "pureconfig-cats-effect" % V.pureconfig,
       "io.chrisdavenport" %% "log4cats-slf4j" % V.log4cats,
+    ),
+    scalacOptions ++= Seq(
+      "-Ypartial-unification",
+    ),
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+    addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8"),
+    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4"),
+  ),
+)
+
+lazy val finanzio = project
+  .settings(
+    libraryDependencies ++= Seq(
       "org.tpolecat" %% "doobie-core" % V.doobie,
       "org.tpolecat" %% "doobie-postgres" % V.doobie,
       "org.tpolecat" %% "doobie-hikari" % V.doobie,
       "org.postgresql" % "postgresql" % V.postgresql,
-      "org.flywaydb" % "flyway-core" % V.flyway
+      "org.flywaydb" % "flyway-core" % V.flyway,
     ),
-    scalacOptions ++= Seq(
-      "-Ypartial-unification"
-    ),
-    addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
     assemblyJarName in assembly := "finanzio.jar",
-    test in assembly := {}
+    test in assembly := {},
   )
+
+lazy val splitwise = project.dependsOn(oauth)
+
+lazy val oauth = project

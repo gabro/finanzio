@@ -7,9 +7,9 @@ import cats._
 import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
-import org.http4s.Uri
-import org.http4s.client.Client
+import cats.temp.par._
 import org.http4s._
+import org.http4s.client.Client
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.middleware.Logger
 import io.circe.Json
@@ -20,9 +20,9 @@ trait SaltedgeService[F[_]] {
   def transactions(): F[List[SaltedgeTransaction]]
 }
 
-class SaltedgeServiceImpl[F[_]: Async: λ[G[_] => Parallel[G, G]]](
+class SaltedgeServiceImpl[F[_]: Async: Par](
     httpClient: Client[F],
-    saltedgeConfig: SaltedgeConfig
+    saltedgeConfig: SaltedgeConfig,
 ) extends SaltedgeService[F] {
 
   private val baseUri = Uri.uri("https://www.saltedge.com") / "api" / "v4"
@@ -80,8 +80,8 @@ class SaltedgeServiceImpl[F[_]: Async: λ[G[_] => Parallel[G, G]]](
     uri = uri,
     headers = Headers(
       Header("App-id", saltedgeConfig.appId),
-      Header("Secret", saltedgeConfig.secret)
-    )
+      Header("Secret", saltedgeConfig.secret),
+    ),
   )
 
 }
