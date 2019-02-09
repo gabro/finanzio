@@ -9,7 +9,6 @@ import cats.syntax.all._
 import cats.effect._
 import io.circe._
 import org.http4s._
-import org.http4s.client._
 import org.http4s.client.blaze._
 import org.http4s.client.middleware.Logger
 import org.http4s.circe.CirceEntityDecoder._

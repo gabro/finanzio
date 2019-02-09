@@ -3,23 +3,18 @@ package finanzio
 import config._
 import data._
 
-import cats._
 import cats.implicits._
 import cats.effect._
-import cats.effect.implicits._
 import cats.temp.par._
 import org.http4s.client.blaze._
 import org.http4s.client._
 import org.http4s.client.middleware.Logger
-import pureconfig._
-import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
 import pureconfig.module.catseffect._
 import io.chrisdavenport.log4cats.{Logger => CatsLogger}
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import doobie._
 import doobie.hikari._
-import doobie.implicits._
 import fs2.Stream
 
 import scala.util.control.NonFatal
@@ -27,8 +22,6 @@ import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 
 object Main extends IOApp {
-
-  implicit private def pureConfigHint[A] = ProductHint[A](ConfigFieldMapping(CamelCase, CamelCase))
 
   type F[A] = IO[A]
 

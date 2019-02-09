@@ -1,7 +1,6 @@
 package oauth
 
 import cats.effect._
-import io.circe.Json
 import org.http4s._
 import org.http4s.client.Client
 import org.http4s.circe.CirceEntityDecoder._
@@ -59,7 +58,6 @@ object OAuth {
     }
 
     private val authMethod = "Bearer"
-    private val accessTokenName = "access_token"
 
   }
 }

@@ -3,15 +3,12 @@ package finanzio
 import models._
 import config.SaltedgeConfig
 
-import cats._
 import cats.implicits._
 import cats.effect._
-import cats.effect.implicits._
 import cats.temp.par._
 import org.http4s._
 import org.http4s.client.Client
 import org.http4s.circe.CirceEntityDecoder._
-import org.http4s.client.middleware.Logger
 import io.circe.Json
 
 trait SaltedgeService[F[_]] {
@@ -67,12 +64,6 @@ class SaltedgeServiceImpl[F[_]: Async: Par](
         .fromEither(json.hcursor.downField("data").as[List[SaltedgeTransaction]])
         .to[F]
     } yield transactions
-  }
-
-  private def refreshLogin(login: SaltedgeLogin): F[Unit] = {
-    val uri = baseUri / "logins" / login.id / "refresh"
-    val req = saltedgeRequest(uri, Method.PUT)
-    httpClient.expect[Json](req).void
   }
 
   private def saltedgeRequest(uri: Uri, method: Method = Method.GET): Request[F] = Request(

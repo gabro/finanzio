@@ -1,6 +1,5 @@
 package finanzio.models
 
-import io.circe.Json
 import io.circe.generic.extras._
 
 import java.time.Instant

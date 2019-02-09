@@ -4,8 +4,6 @@ import finanzio.models._
 
 import cats.implicits._
 import cats.effect._
-import io.circe.Json
-import io.circe.syntax._
 import doobie._
 import doobie.implicits._
 
