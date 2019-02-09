@@ -94,6 +94,18 @@ resource "aws_key_pair" "ssh" {
   public_key = "${file("~/.ssh/id_rsa.pub")}"
 }
 
+data "aws_route53_zone" "primary" {
+  name = "gabro.me"
+}
+
+resource "aws_route53_record" "finanzio" {
+  zone_id = "${data.aws_route53_zone.primary.zone_id}"
+  name    = "finanzio.gabro.me"
+  type    = "A"
+  ttl     = "300"
+  records = ["${aws_instance.finanzio.public_ip}"]
+}
+
 output "ec2_instance_ip" {
   value = "${aws_instance.finanzio.public_ip}"
 }
