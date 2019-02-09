@@ -40,10 +40,21 @@ object Splitwise {
             datedAfter: Option[Instant] = None,
             limit: Option[Int] = None,
         ): F[List[Expense]] =
-          // TODO: params
-          splitwiseRequest("get_expenses", "expenses")
+          splitwiseRequest(
+            "get_expenses",
+            "expenses",
+            uri =>
+              uri
+                .withOptionQueryParam("groupId", groupId)
+                .withOptionQueryParam("datedAfter", datedAfter.map(_.toString))
+                .withOptionQueryParam("limit", limit),
+          )
 
-        private def splitwiseRequest[A: Decoder](path: Uri.Path, responseKey: String): F[A] =
+        private def splitwiseRequest[A: Decoder](
+            path: Uri.Path,
+            responseKey: String,
+            uriModifier: Uri => Uri = identity,
+        ): F[A] =
           for {
             tokens <- oauth.getAccessToken(
               "",
@@ -51,7 +62,7 @@ object Splitwise {
             )
             req = Request[F](
               method = Method.GET,
-              uri = baseUri / path,
+              uri = uriModifier(baseUri / path),
               headers = Headers(
                 Header("Authorization", oauth.buildAuthHeader(tokens)),
               ),
