@@ -6,9 +6,11 @@
     </Console>
   </Appenders>
   <Loggers>
-    <Logger name="finanzio" level="info" />
-    <Root level="warn">
+    <Root level="error">
       <AppenderRef ref="Console"/>
     </Root>
+    <Logger name="finanzio" level="info" />
+    <Logger name="org.http4s.client" level="error" />
+    <Logger name="org.flyway" level="info" />
   </Loggers>
 </Configuration>

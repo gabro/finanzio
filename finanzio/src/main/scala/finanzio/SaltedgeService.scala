@@ -16,6 +16,7 @@ import io.circe.Json
 
 trait SaltedgeService[F[_]] {
   def logins(): F[List[SaltedgeLogin]]
+  def accounts(): F[List[SaltedgeAccount]]
   def transactions(): F[List[SaltedgeTransaction]]
 }
 
@@ -26,18 +27,35 @@ class SaltedgeServiceImpl[F[_]: Async: λ[G[_] => Parallel[G, G]]](
 
   private val baseUri = Uri.uri("https://www.saltedge.com") / "api" / "v4"
 
-  override def logins(): F[List[SaltedgeLogin]] = {
+  override def logins(): F[List[SaltedgeLogin]] =
     for {
       json <- httpClient.expect[Json](saltedgeRequest(baseUri / "logins"))
       logins <- IO.fromEither(json.hcursor.downField("data").as[List[SaltedgeLogin]]).to[F]
     } yield logins
-  }
+
+  override def accounts(): F[List[SaltedgeAccount]] =
+    for {
+      logins <- logins()
+      accounts <- logins.parTraverse(accountsByLogin).map(_.flatten)
+    } yield accounts
 
   override def transactions(): F[List[SaltedgeTransaction]] =
     for {
-      logins <- logins
+      logins <- logins()
       transactions <- logins.parTraverse(transactionsByLogin).map(_.flatten)
     } yield transactions
+
+  private def accountsByLogin(login: SaltedgeLogin): F[List[SaltedgeAccount]] = {
+    val uri =
+      (baseUri / "accounts").withQueryParam("login_id", login.id)
+    val req = saltedgeRequest(uri)
+    for {
+      json <- httpClient.expect[Json](req)
+      accounts <- IO
+        .fromEither(json.hcursor.downField("data").as[List[SaltedgeAccount]])
+        .to[F]
+    } yield accounts
+  }
 
   private def transactionsByLogin(login: SaltedgeLogin): F[List[SaltedgeTransaction]] = {
     val uri =
@@ -51,7 +69,14 @@ class SaltedgeServiceImpl[F[_]: Async: λ[G[_] => Parallel[G, G]]](
     } yield transactions
   }
 
-  private def saltedgeRequest(uri: Uri): Request[F] = Request(
+  private def refreshLogin(login: SaltedgeLogin): F[Unit] = {
+    val uri = baseUri / "logins" / login.id / "refresh"
+    val req = saltedgeRequest(uri, Method.PUT)
+    httpClient.expect[Json](req).void
+  }
+
+  private def saltedgeRequest(uri: Uri, method: Method = Method.GET): Request[F] = Request(
+    method = method,
     uri = uri,
     headers = Headers(
       Header("App-id", saltedgeConfig.appId),

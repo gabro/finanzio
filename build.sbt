@@ -24,6 +24,7 @@ lazy val finanzio = project
       "io.circe" %% "circe-generic" % V.circe,
       "io.circe" %% "circe-generic-extras" % V.circe,
       "io.circe" %% "circe-java8" % V.circe,
+      "io.circe" %% "circe-parser" % V.circe,
       "org.apache.logging.log4j" % "log4j-core" % V.log4j % Runtime,
       "org.apache.logging.log4j" % "log4j-slf4j-impl" % V.log4j,
       "org.apache.logging.log4j" % "log4j-api" % V.log4j,
@@ -40,5 +41,7 @@ lazy val finanzio = project
       "-Ypartial-unification"
     ),
     addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.8"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+    assemblyJarName in assembly := "finanzio.jar",
+    test in assembly := {}
   )
