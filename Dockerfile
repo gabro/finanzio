@@ -4,6 +4,9 @@ ADD project project
 ADD build.sbt .
 RUN sbt finanzio/update
 ADD finanzio finanzio
+ADD saltedge saltedge
+ADD splitwise splitwise
+ADD oauth oauth
 RUN sbt finanzio/assembly
 
 FROM openjdk:8-jre-alpine
