@@ -2,18 +2,20 @@ package splitwise.models
 
 import io.circe.generic.extras._
 
+import java.time.Instant
+
 @ConfiguredJsonCodec case class Expense(
     id: Long,
-    groupId: Long,
+    groupId: Option[Long],
     description: String,
     repeats: Boolean,
-    repeatInterval: String,
+    repeatInterval: Option[String],
     details: Option[String],
-    cost: String,
+    cost: Double,
     currencyCode: String,
-    date: String,
+    date: Instant,
     createdBy: User,
-    users: List[ExpenseUser],
+    users: List[ExpenseShare],
     payment: Boolean,
 )
 

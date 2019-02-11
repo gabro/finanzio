@@ -2,15 +2,15 @@ package splitwise.models
 
 import io.circe.generic.extras._
 
-@ConfiguredJsonCodec case class ExpenseUser(
+@ConfiguredJsonCodec case class ExpenseShare(
     user: User,
     userId: Long,
-    paidShare: String,
-    owedShare: String,
-    netBalance: String,
+    paidShare: Double,
+    owedShare: Double,
+    netBalance: Double,
 )
 
-object ExpenseUser {
+object ExpenseShare {
   implicit val circeConfig: Configuration =
     Configuration.default.withSnakeCaseMemberNames
 }
