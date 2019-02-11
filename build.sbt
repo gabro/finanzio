@@ -69,6 +69,9 @@ lazy val finanzio = project
     assemblyJarName in assembly := "finanzio.jar",
     test in assembly := {},
   )
+  .dependsOn(saltedge, splitwise)
+
+lazy val saltedge = project
 
 lazy val splitwise = project.dependsOn(oauth)
 

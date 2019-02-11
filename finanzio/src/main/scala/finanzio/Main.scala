@@ -17,6 +17,12 @@ import doobie._
 import doobie.hikari._
 import fs2.Stream
 
+import saltedge._
+import saltedge.algebras._
+
+import splitwise._
+import splitwise.algebras._
+
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
@@ -42,36 +48,54 @@ object Main extends IOApp {
 
   val blazeClient: Resource[F, Client[F]] = BlazeClientBuilder[F](global).resource
 
+  val splitwise = for {
+    splitwiseConfig <- Resource.liftF(loadConfigF[F, SplitwiseConfig]("splitwise"))
+    sw <- Splitwise.create[IO](splitwiseConfig.appId, splitwiseConfig.secret)
+  } yield sw
+
   val interval = 30.minutes
 
   def app(args: List[String]) =
     blazeClient.use { client =>
       dbTransactor.use { transactor =>
-        val loggingClient = Logger(true, true)(client)
-        for {
-          logger <- Slf4jLogger.create[F]
-          migrations <- FlywayMigrations.create[F]
-          _ <- new MigrationsCli[F](migrations)(implicitly, logger).run(args)
-          saltedgeConfig <- loadConfigF[F, SaltedgeConfig]("saltedge")
-          saltedgeService = new SaltedgeServiceImpl[F](loggingClient, saltedgeConfig)
-          saltedgeRepository = new SaltedgeRepositoryImpl[F](transactor)
-          accounts <- saltedgeService.accounts()
-          _ <- runEvery(interval) {
-            retrieveAndStoreTransactions(saltedgeService, saltedgeRepository, logger)
-          }
-        } yield ()
+        splitwise.use { splitwise =>
+          val loggingClient = Logger(true, true)(client)
+          for {
+            logger <- Slf4jLogger.create[F]
+            migrations <- FlywayMigrations.create[F]
+            _ <- new MigrationsCli[F](migrations)(implicitly, logger).run(args)
+            saltedgeConfig <- loadConfigF[F, SaltedgeConfig]("saltedge")
+            saltedgeService = Saltedge
+              .create[F](loggingClient, saltedgeConfig.appId, saltedgeConfig.secret)
+            saltedgeRepository = SaltedgeRepository.create[F](transactor)
+            splitwiseRepository = SplitwiseRepository.create[F](transactor)
+            accounts <- saltedgeService.accounts()
+            _ <- runEvery(interval) {
+              retrieveAndStoreTransactions(
+                saltedgeService,
+                saltedgeRepository,
+                splitwise,
+                splitwiseRepository,
+                logger,
+              )
+            }
+          } yield ()
+        }
       }
     }
 
   def retrieveAndStoreTransactions[F[_]: Sync: Par](
-      saltedgeService: SaltedgeService[F],
+      saltedgeService: SaltedgeAlgebra[F],
       saltedgeRepository: SaltedgeRepository[F],
+      splitwise: SplitwiseAlgebra[F],
+      splitwiseRepository: SplitwiseRepository[F],
       logger: CatsLogger[F],
   ): F[Unit] = {
     val retrieveAndStore = (
       saltedgeService.transactions >>= saltedgeRepository.storeTransactions,
       saltedgeService.accounts >>= saltedgeRepository.storeAccounts,
       saltedgeService.logins >>= saltedgeRepository.storeLogins,
+      splitwise.getExpenses(limit = Some(100)) >>= splitwiseRepository.storeExpenses,
     ).parTupled
     val program =
       logger.info("Retrieving transactions, accounts and logins...") >>

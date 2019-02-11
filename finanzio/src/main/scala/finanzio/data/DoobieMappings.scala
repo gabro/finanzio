@@ -1,6 +1,6 @@
 package finanzio.data
 
-import finanzio.models.SaltedgeTransactionExtra
+import saltedge.models.{TransactionExtra => SaltedgeTransactionExtra}
 
 import cats.syntax.either._
 import io.circe.Json

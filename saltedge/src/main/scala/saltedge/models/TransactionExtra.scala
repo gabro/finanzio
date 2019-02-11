@@ -1,33 +1,11 @@
-package finanzio.models
+package saltedge.models
 
 import io.circe.generic.extras._
 
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
-@ConfiguredJsonCodec case class SaltedgeTransaction(
-    id: String,
-    mode: String,
-    status: String,
-    madeOn: LocalDate,
-    amount: Double,
-    currencyCode: String,
-    description: String,
-    category: String,
-    duplicated: Boolean,
-    extra: SaltedgeTransactionExtra,
-    accountId: String,
-    createdAt: Instant,
-    updatedAt: Instant,
-)
-
-object SaltedgeTransaction {
-  implicit val circeConfig: Configuration =
-    Configuration.default.withSnakeCaseMemberNames
-}
-
-@ConfiguredJsonCodec case class SaltedgeTransactionExtra(
+@ConfiguredJsonCodec case class TransactionExtra(
     id: Option[String],
     merchantId: Option[String],
     recordNumber: Option[String],
@@ -66,7 +44,7 @@ object SaltedgeTransaction {
     openingBalance: Option[Double],
 )
 
-object SaltedgeTransactionExtra {
+object TransactionExtra {
   implicit val circeConfig: Configuration =
     Configuration.default.withSnakeCaseMemberNames
 }
