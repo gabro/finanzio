@@ -52,7 +52,9 @@ object Saltedge {
 
     private def transactionsByLogin(login: Login): F[List[Transaction]] = {
       val uri =
-        (baseUri / "transactions").withQueryParam("login_id", login.id)
+        (baseUri / "transactions")
+          .withQueryParam("login_id", login.id)
+          .withQueryParam("per_page", 1000)
       val req = saltedgeRequest(uri)
       for {
         json <- httpClient.expect[Json](req)
