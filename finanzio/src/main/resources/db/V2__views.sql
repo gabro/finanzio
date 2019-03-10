@@ -56,4 +56,23 @@ CREATE OR REPLACE VIEW transactions_metabase AS
     NOT (description like '%Prelievo%' AND amount = -1000)
   AND
     -- ignore withdrawals from PayPal
-    NOT (logins.providername = 'PayPal' AND description = 'Bank Account');
+    NOT (logins.providername = 'PayPal' AND (
+        description = 'Bank Account' OR
+        description = 'Betflag S.p.A' OR
+        description = 'Betclic Limited' OR
+        description = 'Betfair Italia SRL' OR
+        description = 'Lottomatica Scommesse Srl' OR
+        description = 'Stars'
+      ))
+  AND
+    -- ignore matched betting stuff
+    NOT (logins.providername = 'PayPal' AND description = 'Betflag S.p.A.')
+  AND
+    -- ignore matched betting stuff
+    NOT (logins.providername = 'PayPal' AND description = 'Sisal')
+  AND
+    -- ignore matched betting stuff
+    NOT (logins.providername = 'PayPal' AND description = 'Betclic Limited')
+  AND
+    -- ignore matched betting stuff
+    NOT (logins.providername = 'PayPal' AND description = 'Betclic Limited');
