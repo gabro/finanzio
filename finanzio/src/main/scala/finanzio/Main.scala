@@ -96,13 +96,14 @@ object Main extends IOApp {
       saltedgeService.accounts >>= saltedgeRepository.storeAccounts,
       saltedgeService.logins >>= saltedgeRepository.storeLogins,
       splitwise.getExpenses(limit = Some(100)) flatTap splitwiseRepository.storeExpenses,
+      splitwise.getCurrentUser(),
     ).parTupled
     val program =
       logger.info("Retrieving transactions, accounts and logins...") >>
         retrieveAndStore.flatMap {
-          case (transactions, _, _, expenses) =>
+          case (transactions, _, _, expenses, currentUser) =>
             logger.info("Finding matches with Splitwise expenses...") >>
-              matchingSplitwiseExpenses(transactions, expenses, logger) >>=
+              matchingSplitwiseExpenses(transactions, expenses, currentUser, logger) >>=
               splitwiseRepository.storeExpenseMatches
         } >> logger.info(s"Done! Sleeping for $interval now...")
 
@@ -118,23 +119,29 @@ object Main extends IOApp {
   import saltedge.models.Transaction
   import _root_.splitwise.models.Expense
   import _root_.splitwise.models.ExpenseShare
+  import _root_.splitwise.models.User
   import java.time.LocalDateTime
   import java.time.ZoneOffset
   import java.time.temporal.ChronoUnit
   def matchingSplitwiseExpenses[F[_]](
       transactions: List[Transaction],
       expenses: List[Expense],
+      currentUser: User,
       logger: CatsLogger[F],
   )(implicit F: Sync[F]): F[List[(Transaction, Expense, ExpenseShare)]] = F.delay {
     for {
       transaction <- transactions
       expense <- expenses
-      matched = computeMatch(transaction, expense)
+      matched = computeMatch(transaction, expense, currentUser)
       if matched.isDefined
     } yield (transaction, expense, matched.get)
   }
 
-  def computeMatch(transaction: Transaction, expense: Expense): Option[ExpenseShare] = {
+  def computeMatch(
+      transaction: Transaction,
+      expense: Expense,
+      currentUser: User,
+  ): Option[ExpenseShare] = {
     val differenceInDays = ChronoUnit.DAYS.between(
       transaction.madeOn,
       LocalDateTime.ofInstant(expense.date, ZoneOffset.UTC).toLocalDate(),
@@ -149,8 +156,7 @@ object Main extends IOApp {
       }
 
     if (differenceInDays <= 1 && amountMatches)
-      // TODO(gabro)
-      expense.users.find(_.user.lastName == Some("Petronella"))
+      expense.users.find(_.userId == currentUser.id)
     else
       None
   }
