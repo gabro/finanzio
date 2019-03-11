@@ -92,15 +92,20 @@ object Main extends IOApp {
       logger: CatsLogger[F],
   ): F[Unit] = {
     val retrieveAndStore = (
-      saltedgeService.transactions >>= saltedgeRepository.storeTransactions,
+      saltedgeService.transactions flatTap saltedgeRepository.storeTransactions,
       saltedgeService.accounts >>= saltedgeRepository.storeAccounts,
       saltedgeService.logins >>= saltedgeRepository.storeLogins,
-      splitwise.getExpenses(limit = Some(100)) >>= splitwiseRepository.storeExpenses,
+      splitwise.getExpenses(limit = Some(100)) flatTap splitwiseRepository.storeExpenses,
     ).parTupled
     val program =
       logger.info("Retrieving transactions, accounts and logins...") >>
-        retrieveAndStore >>
-        logger.info(s"Done! Sleeping for $interval now...")
+        retrieveAndStore.flatMap {
+          case (transactions, _, _, expenses) =>
+            logger.info("Finding matches with Splitwise expenses...") >>
+              matchingSplitwiseExpenses(transactions, expenses, logger) >>=
+              splitwiseRepository.storeExpenseMatches
+        } >> logger.info(s"Done! Sleeping for $interval now...")
+
     program.recoverWith {
       case NonFatal(e) =>
         logger.error(e.getMessage) >>
@@ -108,6 +113,46 @@ object Main extends IOApp {
             s"Error while retrieving and storing transactions. Retrying in $interval...",
           )
     }
+  }
+
+  import saltedge.models.Transaction
+  import _root_.splitwise.models.Expense
+  import _root_.splitwise.models.ExpenseShare
+  import java.time.LocalDateTime
+  import java.time.ZoneOffset
+  import java.time.temporal.ChronoUnit
+  def matchingSplitwiseExpenses[F[_]](
+      transactions: List[Transaction],
+      expenses: List[Expense],
+      logger: CatsLogger[F],
+  )(implicit F: Sync[F]): F[List[(Transaction, Expense, ExpenseShare)]] = F.delay {
+    for {
+      transaction <- transactions
+      expense <- expenses
+      matched = computeMatch(transaction, expense)
+      if matched.isDefined
+    } yield (transaction, expense, matched.get)
+  }
+
+  def computeMatch(transaction: Transaction, expense: Expense): Option[ExpenseShare] = {
+    val differenceInDays = ChronoUnit.DAYS.between(
+      transaction.madeOn,
+      LocalDateTime.ofInstant(expense.date, ZoneOffset.UTC).toLocalDate(),
+    )
+    val amountMatches =
+      if (expense.cost % 1 != 0) {
+        // if the Splitwise expense cost has decimals, be precise
+        expense.cost == -transaction.amount
+      } else {
+        // otherwise, allow a 2% difference
+        Math.abs(1 - (-transaction.amount / expense.cost)) <= 0.02
+      }
+
+    if (differenceInDays <= 1 && amountMatches)
+      // TODO(gabro)
+      expense.users.find(_.user.lastName == Some("Petronella"))
+    else
+      None
   }
 
   def runEvery[F[_]: Timer: Sync, A](interval: FiniteDuration)(program: F[A]): F[Unit] =

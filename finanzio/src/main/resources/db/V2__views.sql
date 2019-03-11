@@ -5,6 +5,7 @@ CREATE OR REPLACE VIEW transactions_metabase AS
     transactions.status,
     transactions.madeon,
     - transactions.amount as amount,
+    COALESCE(splitwise_expense_shares.owedshare, - transactions.amount) as owed_amount,
     transactions.currencycode,
     transactions.description,
     transactions.category,
@@ -12,13 +13,18 @@ CREATE OR REPLACE VIEW transactions_metabase AS
     transactions.extra,
     transactions.accountid,
     logins.providername as login_name,
-    accounts.name AS account_name,
-    accounts.nature AS account_nature,
+    accounts.name as account_name,
+    accounts.nature as account_nature,
     transactions.createdat,
-    transactions.updatedat
-  FROM transactions
-  LEFT JOIN accounts ON transactions.accountid = accounts.id
-  LEFT JOIN logins ON accounts.loginid = logins.id
+    transactions.updatedat,
+    splitwise_expenses.description as splitwise_description,
+    splitwise_expense_shares.owedshare as splitwise_owed_share
+   FROM transactions
+     LEFT JOIN accounts ON transactions.accountid = accounts.id
+     LEFT JOIN logins ON accounts.loginid = logins.id
+     LEFT JOIN splitwise_matched_transactions ON transactions.id = splitwise_matched_transactions.saltedge_transaction_id
+     LEFT JOIN splitwise_expense_shares ON splitwise_matched_transactions.splitwise_expense_id = splitwise_expense_shares.expenseid AND splitwise_matched_transactions.splitwise_user_id = splitwise_expense_shares.userid
+     LEFT JOIN splitwise_expenses ON splitwise_expenses.id = splitwise_matched_transactions.splitwise_expense_id
   WHERE
     -- ignore incoming transactions
     amount < 0
@@ -41,38 +47,33 @@ CREATE OR REPLACE VIEW transactions_metabase AS
     ))
   AND
     -- ignore Fineco credit card
-    description not like '%CARTA DI CREDITO DI FINECOBANK%'
+    transactions.description not like '%CARTA DI CREDITO DI FINECOBANK%'
   AND
     -- ignore taxes
-    description not like '%Pagamento deleghe f24%'
+    transactions.description not like '%Pagamento deleghe f24%'
   AND
     -- ignore MAV payments
-    description not like '%Pagamento mav%'
+    transactions.description not like '%Pagamento mav%'
   AND
     -- ignore downpayment new house
-    description != 'Assegno n. 8345921901'
+    transactions.description != 'Assegno n. 8345921901'
   AND
     -- ignore cash withdrawals for new house
-    NOT (description like '%Prelievo%' AND amount = -1000)
+    NOT (transactions.description like '%Prelievo%' AND amount = -1000)
   AND
     -- ignore withdrawals from PayPal
+    NOT (logins.providername = 'PayPal' AND transactions.description = 'Bank Account')
+  AND
+    -- ignore matched betting stuff
     NOT (logins.providername = 'PayPal' AND (
-        description = 'Bank Account' OR
-        description = 'Betflag S.p.A' OR
-        description = 'Betclic Limited' OR
-        description = 'Betfair Italia SRL' OR
-        description = 'Lottomatica Scommesse Srl' OR
-        description = 'Stars'
+        transactions.description = 'Betflag S.p.A.' OR
+        transactions.description = 'Betclic Limited' OR
+        transactions.description = 'Betfair Italia SRL' OR
+        transactions.description = 'Lottomatica Scommesse Srl' OR
+        transactions.description = 'Sisal' OR
+        transactions.description = 'Stars'
       ))
   AND
-    -- ignore matched betting stuff
-    NOT (logins.providername = 'PayPal' AND description = 'Betflag S.p.A.')
-  AND
-    -- ignore matched betting stuff
-    NOT (logins.providername = 'PayPal' AND description = 'Sisal')
-  AND
-    -- ignore matched betting stuff
-    NOT (logins.providername = 'PayPal' AND description = 'Betclic Limited')
-  AND
-    -- ignore matched betting stuff
-    NOT (logins.providername = 'PayPal' AND description = 'Betclic Limited');
+    -- ignore BPER mortgage stuff
+    NOT (logins.providername = 'BPER (SmartWeb)' AND transactions.description like '%GIROCONTO%')
+;

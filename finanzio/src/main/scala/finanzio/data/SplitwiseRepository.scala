@@ -8,11 +8,13 @@ import doobie.implicits._
 import splitwise.models.Expense
 import splitwise.models.User
 import splitwise.models.ExpenseShare
+import saltedge.models.Transaction
 
 import java.time.Instant
 
 trait SplitwiseRepository[F[_]] {
   def storeExpenses(expenses: List[Expense]): F[Unit]
+  def storeExpenseMatches(expenseMatches: List[(Transaction, Expense, ExpenseShare)]): F[Unit]
 }
 
 object SplitwiseRepository extends DoobieMappings {
@@ -78,15 +80,36 @@ object SplitwiseRepository extends DoobieMappings {
           interestingExpenses
             .flatMap(expense => expense.createdBy :: expense.users.map(_.user))
             .distinct
-        val ExpenseShares = interestingExpenses.flatMap(e => e.users.map((e.id, _))).distinct
+        val expenseShares = interestingExpenses.flatMap(e => e.users.map((e.id, _))).distinct
         val dbExpenses = interestingExpenses.map(DbExpense.fromExpense)
 
         val transaction =
           storeUsers(knownUsers) >>
             Update[DbExpense](q).updateMany(dbExpenses) >>
-            storeExpenseShares(ExpenseShares)
+            storeExpenseShares(expenseShares)
 
         transaction.transact(xa).void
+      }
+
+      def storeExpenseMatches(
+          expenseMatches: List[(Transaction, Expense, ExpenseShare)],
+      ): F[Unit] = {
+        val q = """
+        insert into splitwise_matched_transactions
+        (saltedge_transaction_id, splitwise_expense_id, splitwise_user_id)
+        values
+        (?, ?, ?)
+        on conflict (saltedge_transaction_id) do update set
+            splitwise_expense_id = excluded.splitwise_expense_id,
+            splitwise_user_id = excluded.splitwise_user_id
+        """
+
+        val matchedTransactions = expenseMatches.map {
+          case (transaction, expense, share) =>
+            (transaction.id, expense.id, share.userId)
+        }
+
+        Update[(String, Long, Long)](q).updateMany(matchedTransactions).transact(xa).void
       }
 
     }
