@@ -10,6 +10,7 @@ import org.http4s._
 import org.http4s.client.Client
 import org.http4s.circe.CirceEntityDecoder._
 import io.circe.Json
+import java.time.Instant
 
 object Saltedge {
   def create[F[_]: Async: Par](
@@ -29,13 +30,14 @@ object Saltedge {
     override def accounts(): F[List[Account]] =
       for {
         logins <- logins()
-        accounts <- logins.parTraverse(accountsByLogin).map(_.flatten)
+        accounts <- logins.parFlatTraverse(accountsByLogin)
       } yield accounts
 
     override def transactions(): F[List[Transaction]] =
       for {
         logins <- logins()
-        transactions <- logins.parTraverse(transactionsByLogin).map(_.flatten)
+        _ <- logins.parTraverse(refreshLogin)
+        transactions <- logins.parFlatTraverse(transactionsByLogin)
       } yield transactions
 
     private def accountsByLogin(login: Login): F[List[Account]] = {
@@ -62,6 +64,17 @@ object Saltedge {
           .fromEither(json.hcursor.downField("data").as[List[Transaction]])
           .to[F]
       } yield transactions
+    }
+
+    private def refreshLogin(login: Login): F[Unit] = {
+      val canRefresh = login.nextRefreshPossibleAt.exists(_.isBefore(Instant.now))
+      if (!login.lastAttempt.interactive && canRefresh) {
+        val uri = baseUri / "logins" / login.id / "refresh"
+        val req = saltedgeRequest(uri, Method.PUT)
+        httpClient.expect[Json](req).void
+      } else {
+        Sync[F].unit
+      }
     }
 
     private def saltedgeRequest(uri: Uri, method: Method = Method.GET): Request[F] = Request(

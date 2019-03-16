@@ -66,6 +66,6 @@ create table if not exists splitwise_matched_transactions (
     primary key (saltedge_transaction_id, splitwise_expense_id, splitwise_user_id),
     foreign key (saltedge_transaction_id) references transactions (id) on delete cascade,
     foreign key (splitwise_expense_id) references splitwise_expenses (id) on delete cascade,
-    foreign key (splitwise_expense_id) references splitwise_users (id) on delete cascade,
+    foreign key (splitwise_user_id) references splitwise_users (id) on delete cascade,
     foreign key (splitwise_expense_id, splitwise_user_id) references splitwise_expense_shares (expenseId, userId) on delete cascade
 );

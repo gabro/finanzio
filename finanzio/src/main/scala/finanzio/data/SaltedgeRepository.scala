@@ -72,7 +72,10 @@ object SaltedgeRepository extends DoobieMappings {
     on conflict (id) do update set
       providerName = excluded.providerName
     """
-        Update[SaltedgeLogin](q).updateMany(logins).transact(xa).void
+        Update[(String, String)](q)
+          .updateMany(logins.map(login => (login.id, login.providerName)))
+          .transact(xa)
+          .void
       }
 
     }

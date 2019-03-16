@@ -1,22 +1,16 @@
 CREATE OR REPLACE VIEW transactions_metabase AS
  SELECT
     transactions.id,
-    transactions.mode,
-    transactions.status,
     transactions.madeon,
     - transactions.amount as amount,
     COALESCE(splitwise_expense_shares.owedshare, - transactions.amount) as owed_amount,
-    transactions.currencycode,
     transactions.description,
     transactions.category,
     transactions.duplicated,
-    transactions.extra,
     transactions.accountid,
     logins.providername as login_name,
     accounts.name as account_name,
     accounts.nature as account_nature,
-    transactions.createdat,
-    transactions.updatedat,
     splitwise_expenses.description as splitwise_description,
     splitwise_expense_shares.owedshare as splitwise_owed_share
    FROM transactions
@@ -56,7 +50,12 @@ CREATE OR REPLACE VIEW transactions_metabase AS
     transactions.description not like '%Pagamento mav%'
   AND
     -- ignore downpayment new house
-    transactions.description != 'Assegno n. 8345921901'
+    NOT (transactions.description = 'Assegno n. 8345921901' OR
+         transactions.description = 'Assegno n. 8345921902'
+        )
+  AND
+    -- ignore cash withdrawals for new house
+    NOT (transactions.description like '%Prelevamento carta N° ***** 767%' AND amount = -250)
   AND
     -- ignore cash withdrawals for new house
     NOT (transactions.description like '%Prelievo%' AND amount = -1000)
@@ -75,5 +74,26 @@ CREATE OR REPLACE VIEW transactions_metabase AS
       ))
   AND
     -- ignore BPER mortgage stuff
-    NOT (logins.providername = 'BPER (SmartWeb)' AND transactions.description like '%GIROCONTO%')
-;
+    NOT (logins.providername = 'BPER (SmartWeb)' AND (
+      transactions.description like '%GIROCONTO%' OR
+      transactions.description = 'TOTALE SPESE'
+    ))
+
+UNION
+
+  -- splitwise expense
+   SELECT id::varchar as id,
+    date as madeon,
+    cost as amount,
+    owedshare as owed_amount,
+    description,
+    NULL as category,
+    FALSE as duplicated,
+    NULL as accountId,
+    'Splitwise' as login_name,
+    'Splitwise' as account_name,
+    NULL as account_nature,
+    description as splitwise_description,
+    owedshare as splitwise_owed_share
+FROM splitwise_expenses LEFT JOIN splitwise_expense_shares ON splitwise_expenses.id = splitwise_expense_shares.expenseid
+WHERE splitwise_expense_shares.userid = '4393813' and splitwise_expense_shares.paidshare = 0;
