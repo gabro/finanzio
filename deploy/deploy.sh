@@ -26,10 +26,6 @@ echo
 echo Copying docker-compose file...
 scp -ri $KEY $DIR/../terraform/docker-compose.yml ubuntu@$HOST:docker-compose.yml
 
-# echo
-# echo Writing variables to .env...
-# ssh -i $KEY ubuntu@$HOST "echo -e \"$DOTENV\" >.env && cat .env"
-
 echo
 echo Updating docker images...
 ssh -i $KEY ubuntu@$HOST "docker-compose pull"

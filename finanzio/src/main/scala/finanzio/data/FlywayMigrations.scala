@@ -14,7 +14,7 @@ import finanzio.config._
 case class Migration(
     state: String,
     version: String,
-    description: String
+    description: String,
 )
 
 trait Migrations[F[_]] {
@@ -24,7 +24,7 @@ trait Migrations[F[_]] {
 }
 
 final class MigrationsCli[F[_]](
-    migrations: Migrations[F]
+    migrations: Migrations[F],
 )(implicit F: Sync[F], logger: Logger[F]) {
 
   def run(args: List[String]): F[Unit] =
@@ -42,14 +42,14 @@ final class MigrationsCli[F[_]](
         list.mkString(
           start = "Migrations:\n",
           sep = "\n",
-          end = s"\n${list.length} migrations found"
-        )
+          end = s"\n${list.length} migrations found",
+        ),
       )
     } yield ()
 }
 
 private class FlywayMigrations[F[_]](
-    flyway: Flyway
+    flyway: Flyway,
 )(implicit F: Sync[F])
     extends Migrations[F] {
 
@@ -58,7 +58,7 @@ private class FlywayMigrations[F[_]](
       Migration(
         state = m.getState.toString,
         version = m.getVersion.toString,
-        description = m.getDescription
+        description = m.getDescription,
       )
     }.toList
   }
@@ -88,7 +88,7 @@ object FlywayMigrations {
           .dataSource(
             dbConfig.url,
             dbConfig.user,
-            dbConfig.password
+            dbConfig.password,
           )
           .locations(flywayConfig.locations)
           .load()

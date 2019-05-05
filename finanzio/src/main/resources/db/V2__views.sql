@@ -38,6 +38,9 @@ CREATE OR REPLACE VIEW transactions_metabase AS
       AND
         -- ignore wire transfers to Irina
         extra ->> 'additional' not like '%bonifico da voi disposto a favore di: irina%'
+      AND
+        -- ignore transfers between my own accounts
+        extra ->> 'additional' not like '%Bonifico da voi disposto a favore di: gabriele petronella%'
     ))
   AND
     -- ignore Fineco credit card

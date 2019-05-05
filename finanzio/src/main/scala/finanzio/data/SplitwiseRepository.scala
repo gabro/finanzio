@@ -75,7 +75,7 @@ object SplitwiseRepository extends DoobieMappings {
             payment = excluded.payment
         """
         val interestingExpenses =
-          expenses.filterNot(_.payment).filterNot(_.description == "Settle all balances")
+          expenses.filterNot(_.description == "Settle all balances")
         val knownUsers =
           interestingExpenses
             .flatMap(expense => expense.createdBy :: expense.users.map(_.user))

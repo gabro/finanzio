@@ -8,7 +8,7 @@ data "aws_ami" "ubuntu" {
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"]
   }
 
   filter {
@@ -21,23 +21,23 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "finanzio" {
   ami             = "${data.aws_ami.ubuntu.id}"
-  instance_type   = "t2.micro"
+  instance_type   = "t2.small"
   key_name        = "${aws_key_pair.ssh.key_name}"
   security_groups = ["${aws_security_group.finanzio.name}"]
 
   provisioner "remote-exec" {
     inline = [
       "echo \"##### Performing apt-get update #####\"",
-      "sudo apt-get update",
+      "sudo apt-get update -y",
       "echo \"##### Installing packages #####\"",
-      "sudo apt-get install apt-transport-https ca-certificates curl software-properties-common",
+      "sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common",
       "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -",
       "echo \"##### The Docker repo Key fingerprint should be: #####\"",
       "echo 9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88",
       "sudo apt-key fingerprint 0EBFCD88",
       "sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\"",
       "echo \"##### Performing apt-get update #####\"",
-      "sudo apt-get update",
+      "sudo apt-get update -y",
       "sudo apt-get install -y docker-ce",
       "sudo usermod -aG docker ubuntu",
       "echo \"##### Installing Docker Compose#####\"",
@@ -58,6 +58,8 @@ resource "aws_instance" "finanzio" {
 
   provisioner "remote-exec" {
     inline = [
+      "mkdir config",
+      "curl https://raw.githubusercontent.com/jwilder/nginx-proxy/master/nginx.tmpl > config/nginx.tmpl",
       "docker-compose up -d",
     ]
   }
